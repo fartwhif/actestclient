@@ -61,8 +61,8 @@ namespace TestClient
 
 			while (true)
 			{
-				displayManager.Clear();
-				displayManager.Refresh();
+				//displayManager.Clear();
+				//displayManager.Refresh();
 				//displayManager.Write(0, 0, "AC Test Client");
 
 				//displayManager.Write(-15, 0, networkManager == null ? "Disconnected" : networkManager.World);

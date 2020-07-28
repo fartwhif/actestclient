@@ -592,6 +592,7 @@ namespace TestClient.Net
 
 			this.connection = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 			this.connection.Bind(this.localAddr);
+			this.connection.EnableConnectionResetWrapper(false);
 			this.shouldBeRunning = true;
 
 			DoReceive();
