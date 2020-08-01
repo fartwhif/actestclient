@@ -92,7 +92,7 @@ namespace TestClient.Net
 			this.packetQueue = new ConcurrentQueue<PacketQueueEntry>();
 			this.packetReady = new AutoResetEvent(false);
 
-			this.networkThread = new Thread(NetworkThreadStart);
+
 
 			this.World = "Disconnected";
 
@@ -135,6 +135,11 @@ namespace TestClient.Net
 
 		#region Connect
 
+		public void Configure()
+		{
+			Configure(new IPEndPoint(IPAddress.Any, 0));
+		}
+
 		public void Configure(int port)
 		{
 			Configure(new IPEndPoint(IPAddress.Any, port));
@@ -154,6 +159,13 @@ namespace TestClient.Net
 			this.currentWorldServer = this.loginServer;
 
 			// save connection info
+
+			if (this.networkThread != null)
+			{
+				this.shouldBeRunning = false;
+				this.NetworkThreadEnding.WaitOne();
+			}
+			this.networkThread = new Thread(NetworkThreadStart);
 			this.networkThread.Start();
 
 			LoginRequestPacket cp = new LoginRequestPacket(account, token);
@@ -340,13 +352,15 @@ namespace TestClient.Net
 
 			byte[] buffer = ArrayPool<byte>.Shared.Rent(2048);
 
-			this.connection.BeginReceiveFrom(
+			currentRead = this.connection.BeginReceiveFrom(
 				buffer, 0, buffer.Length,
 				SocketFlags.None,
 				ref ep,
 				OnReceive,
-				buffer);
+				new object[] { this.connection, buffer });
 		}
+
+		IAsyncResult currentRead = null;
 
 		private void OnReceive(IAsyncResult result)
 		{
@@ -359,11 +373,24 @@ namespace TestClient.Net
 			IPEndPoint ip = new IPEndPoint(IPAddress.Any, 0);
 			EndPoint ep = ip;
 
-			int length = this.connection.EndReceiveFrom(result, ref ep);
-			byte[] buffer = (byte[])result.AsyncState;
+			//is this true? https://stackoverflow.com/a/4662631/6620171
+			//some way to test for disposed socket?
+			int length;
+			byte[] buffer = null;
+			try
+			{
+				var myState = (object[])result.AsyncState;
+				Socket p = (Socket)myState[0];
+				length = p.EndReceiveFrom(result, ref ep);
+				buffer = (byte[])myState[1];
+			}
+			catch { }
+			finally
+			{
+				if (shouldBeRunning)
+					DoReceive();
+			}
 
-			if (shouldBeRunning)
-				DoReceive();
 
 			ip = (IPEndPoint)ep;
 			//Debug.WriteLine($"Data from {ip.Address.ToString()}:{ip.Port}");
@@ -389,7 +416,10 @@ namespace TestClient.Net
 			}
 			finally
 			{
-				ArrayPool<byte>.Shared.Return(buffer, true);
+				if (buffer != null)
+				{
+					ArrayPool<byte>.Shared.Return(buffer, true);
+				}
 			}
 		}
 
@@ -584,6 +614,8 @@ namespace TestClient.Net
 
 		#endregion
 
+		ManualResetEvent NetworkThreadEnding = new ManualResetEvent(false);
+
 		#region Network Thread
 
 		private void NetworkThreadStart()
@@ -629,6 +661,31 @@ namespace TestClient.Net
 			}
 			catch (ThreadAbortException)
 			{
+			}
+			finally
+			{
+				if (this.connection != null)
+				{
+					//if (currentRead != null)
+					//{
+					//	if (!currentRead.IsCompleted)
+					//	{
+					//		this.currentRead.AsyncWaitHandle.WaitOne();
+					//	}
+					//}
+					try
+					{
+						this.connection.Close();
+					}
+					catch { }
+					finally
+					{
+						this.connection = null;
+					}
+				}
+				this.connection = null;
+				this.NetworkThreadEnding.Set();
+				this.shouldBeRunning = false;
 			}
 		}
 

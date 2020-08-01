@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.CommandLineUtils;
+using Microsoft.Scripting.Hosting;
+using TestClient.Scripts;
 
 namespace TestClient.Ux
 {
@@ -16,6 +18,7 @@ namespace TestClient.Ux
 		private const string HelpOption = "-? | -h | --help";
 
 		private CommandLineApplication parser;
+
 		//private Thread inputThread;
 		//private bool running;
 
@@ -104,6 +107,9 @@ namespace TestClient.Ux
 				}
 				catch (Exception ex)
 				{
+					ExceptionOperations eo = ScriptManager.GetEngine().GetService<ExceptionOperations>();
+					string error = eo.FormatException(ex);
+					Console.WriteLine(error);
 				}
 
 				readResult.Dispose();
@@ -169,6 +175,7 @@ namespace TestClient.Ux
 					parser.ShowHelp();
 					return 0;
 				});
+
 			// parser.Command("help", config =>
 			// 	{
 			// 		config.OnExecute(() =>
@@ -256,6 +263,8 @@ namespace TestClient.Ux
 						ScriptReload();
 					return 0;
 				});
+
+
 
 			// cmd.Command("exec", config =>
 			// 	{

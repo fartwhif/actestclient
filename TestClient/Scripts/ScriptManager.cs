@@ -18,6 +18,7 @@ using TestClient.Ux;
 namespace TestClient.Scripts
 {
 	public delegate void MessageDelegate(Message msg);
+	public delegate void StartupDelegate();
 
 	public class ScriptManager : IDisposable, IScriptMessageHandler
 	{
@@ -101,6 +102,13 @@ namespace TestClient.Scripts
 			engineScope = engineRuntime.CreateScope();
 
 			scriptThread.Start();
+
+			
+		}
+
+		public static ScriptEngine GetEngine()
+		{
+			return Instance.engine;
 		}
 
 		public ScriptManager(string path, string pyLibPath)
@@ -116,6 +124,8 @@ namespace TestClient.Scripts
 			engine.SetSearchPaths(searchPaths);
 
 			Reload();
+
+			
 		}
 
 		~ScriptManager()
@@ -144,7 +154,6 @@ namespace TestClient.Scripts
 
 		Action<uint, MessageDelegate> IScriptMessageHandler.HandleMessage => HandleMessage;
 		Action<uint, uint, MessageDelegate> IScriptMessageHandler.HandleMessageEvent => HandleMessageEvent;
-
 		public void HandleMessage(uint type, MessageDelegate handler)
 		{
 			Debug.WriteLine($"Adding handler for {type:X4}");
@@ -198,6 +207,7 @@ namespace TestClient.Scripts
 
 		public void Reload()
 		{
+			Reloaded.Reset();
 			messageHandlers.Clear();
 			eventMessageHandlers.Clear();
 
@@ -212,8 +222,28 @@ namespace TestClient.Scripts
 				}
 				catch (Exception ex)
 				{
-					Debug.WriteLine($"{ex.Message}");
+					ExceptionOperations eo = engine.GetService<ExceptionOperations>();
+					string error = eo.FormatException(ex);
+					Console.WriteLine(error);
 				}
+			}
+
+			Reloaded.Set();
+
+		}
+		ManualResetEvent Reloaded = new ManualResetEvent(false);
+
+		public void CallApiStartup()
+		{
+			try
+			{
+				engine.Operations.Invoke(engineScope.GetVariable("Startup"));
+			}
+			catch(Exception ex)
+			{
+				ExceptionOperations eo = engine.GetService<ExceptionOperations>();
+				string error = eo.FormatException(ex);
+				Console.WriteLine(error);
 			}
 		}
 
@@ -225,16 +255,33 @@ namespace TestClient.Scripts
 
 		#region Script Thread
 
+		public ManualResetEvent ScriptThreadReady = new ManualResetEvent(false);
+
 		private void ScriptThreadStart()
 		{
 			running = true;
 
 			try
 			{
+				Reloaded.WaitOne();
 				Debug.WriteLine("Script Loop Start");
+				ScriptThreadReady.Set();
+				var testMachine = engineScope.GetVariable("Test");
 				while (running)
 				{
-					messageReady.WaitOne(TimeSpan.FromSeconds(1));
+					messageReady.WaitOne(TimeSpan.FromMilliseconds(100));
+
+					try
+					{
+						engine.Operations.Invoke(testMachine);
+					}
+					catch (Exception ex)
+					{
+						ExceptionOperations eo = engine.GetService<ExceptionOperations>();
+						string error = eo.FormatException(ex);
+						Console.WriteLine(error);
+					}
+
 
 					if (this.messageQueue.Count == 0)
 						continue;
@@ -257,17 +304,20 @@ namespace TestClient.Scripts
 						}
 						catch (Exception ex)
 						{
-							Debug.WriteLine($"Error handling message {msg.Type:X4} : {ex.ToString()}");
+							ExceptionOperations eo = engine.GetService<ExceptionOperations>();
+							string error = eo.FormatException(ex);
+							Debug.WriteLine($"Error handling message {msg.Type:X4} : {error}");
 						}
 						msg.Dispose();
 					}
-
 					// let other things happen
 					Thread.Yield();
 				}
+				ScriptThreadReady.Reset();
 			}
 			catch (ThreadAbortException)
 			{
+				ScriptThreadReady.Reset();
 			}
 		}
 

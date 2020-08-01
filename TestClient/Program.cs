@@ -59,6 +59,16 @@ namespace TestClient
 
 			MessageParser.Initialize("messages.xml");
 
+			commandManager.CreateCommand("start", () =>
+			{
+				scriptManager.CallApiStartup();
+				return 0;
+			});
+
+			scriptManager.SetNetworkManager(networkManager);
+			scriptManager.ScriptThreadReady.WaitOne();
+			scriptManager.CallApiStartup();
+
 			while (true)
 			{
 				//displayManager.Clear();

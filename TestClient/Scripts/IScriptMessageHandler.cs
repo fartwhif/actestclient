@@ -12,4 +12,11 @@ namespace TestClient.Scripts
 		//void HandleMessage(uint type, MessageDelegate handler);
 		//void HandleMessage(uint type, uint eventCode, MessageDelegate handler);
 	}
+
+	[Documentation("Interface for startup")]
+	public interface IScriptStartupHandler
+	{
+		Action HandleStartup { get; }
+		Action<uint> HandleStartupEvent { get; }
+	}
 }

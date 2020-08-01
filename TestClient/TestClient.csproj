@@ -34,4 +34,8 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="script\api\network.py" />
+  </ItemGroup>
+
 </Project>

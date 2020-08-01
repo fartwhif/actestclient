@@ -10,7 +10,7 @@ from .messages import *
 from .commands import *
 from .actions import *
 
+from .network import *
 from .display import *
 from .world import *
 from .character import *
-
