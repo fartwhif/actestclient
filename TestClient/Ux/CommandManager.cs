@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.CommandLineUtils;
 using Microsoft.Scripting.Hosting;
 using TestClient.Scripts;
+using TestClient.Util;
 
 namespace TestClient.Ux
 {
@@ -33,8 +34,6 @@ namespace TestClient.Ux
 			Instance = this;
 
 			Init();
-			//inputThread = new Thread(InputThreadStart);
-			//inputThread.Start();
 		}
 
 		private static string[] ToStrings(string commandLine)
@@ -97,7 +96,6 @@ namespace TestClient.Ux
 
 			if (readResult.IsCompleted)
 			{
-				//string commands = Console.ReadLine();
 				string commands = readResult.Result;
 
 				try
@@ -107,9 +105,7 @@ namespace TestClient.Ux
 				}
 				catch (Exception ex)
 				{
-					ExceptionOperations eo = ScriptManager.GetEngine().GetService<ExceptionOperations>();
-					string error = eo.FormatException(ex);
-					Console.WriteLine(error);
+					ex.PythonException();
 				}
 
 				readResult.Dispose();
@@ -175,16 +171,6 @@ namespace TestClient.Ux
 					parser.ShowHelp();
 					return 0;
 				});
-
-			// parser.Command("help", config =>
-			// 	{
-			// 		config.OnExecute(() =>
-			// 		{
-			// 			parser.ShowHelp();
-			// 			return 0;
-			// 		});
-			// 	});
-
 			CommandLineApplication cmd;
 
 			// network

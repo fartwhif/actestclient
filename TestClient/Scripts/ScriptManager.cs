@@ -14,6 +14,7 @@ using IronPython.Hosting;
 using TestClient.Net;
 using TestClient.Net.Messages;
 using TestClient.Ux;
+using TestClient.Util;
 
 namespace TestClient.Scripts
 {
@@ -103,7 +104,7 @@ namespace TestClient.Scripts
 
 			scriptThread.Start();
 
-			
+
 		}
 
 		public static ScriptEngine GetEngine()
@@ -119,13 +120,11 @@ namespace TestClient.Scripts
 
 			ICollection<string> searchPaths = engine.GetSearchPaths();
 			// TODO: option for python stdlib
-			searchPaths.Add(pyStdLibPath);
-			searchPaths.Add(System.IO.Path.GetFullPath(rootPath));
+						
 			engine.SetSearchPaths(searchPaths);
-
 			Reload();
 
-			
+
 		}
 
 		~ScriptManager()
@@ -211,23 +210,27 @@ namespace TestClient.Scripts
 			messageHandlers.Clear();
 			eventMessageHandlers.Clear();
 
-			engineRuntime.ImportModule("api");
-
-			foreach (string path in System.IO.Directory.GetFiles(rootPath))
+			try
 			{
-				try
+				engineRuntime.ImportModule("api");
+
+				foreach (string path in System.IO.Directory.GetFiles(rootPath))
 				{
-					Debug.WriteLine($"loading {path}");
-					engine.ExecuteFile(path, engineScope);
-				}
-				catch (Exception ex)
-				{
-					ExceptionOperations eo = engine.GetService<ExceptionOperations>();
-					string error = eo.FormatException(ex);
-					Console.WriteLine(error);
+					try
+					{
+						Debug.WriteLine($"loading {path}");
+						engine.ExecuteFile(path, engineScope);
+					}
+					catch (Exception ex)
+					{
+						ex.PythonException();
+					}
 				}
 			}
-
+			catch (Exception ex)
+			{
+				ex.PythonException();
+			}
 			Reloaded.Set();
 
 		}
@@ -239,11 +242,9 @@ namespace TestClient.Scripts
 			{
 				engine.Operations.Invoke(engineScope.GetVariable("Startup"));
 			}
-			catch(Exception ex)
+			catch (Exception ex)
 			{
-				ExceptionOperations eo = engine.GetService<ExceptionOperations>();
-				string error = eo.FormatException(ex);
-				Console.WriteLine(error);
+				ex.PythonException();
 			}
 		}
 
@@ -266,20 +267,29 @@ namespace TestClient.Scripts
 				Reloaded.WaitOne();
 				Debug.WriteLine("Script Loop Start");
 				ScriptThreadReady.Set();
-				var testMachine = engineScope.GetVariable("Test");
+				dynamic testMachine = null;
+				try
+				{
+					testMachine = engineScope.GetVariable("Test");
+				}
+				catch (Exception ex)
+				{
+					ex.PythonException();
+				}
 				while (running)
 				{
 					messageReady.WaitOne(TimeSpan.FromMilliseconds(100));
 
-					try
+					if (testMachine != null)
 					{
-						engine.Operations.Invoke(testMachine);
-					}
-					catch (Exception ex)
-					{
-						ExceptionOperations eo = engine.GetService<ExceptionOperations>();
-						string error = eo.FormatException(ex);
-						Console.WriteLine(error);
+						try
+						{
+							engine.Operations.Invoke(testMachine);
+						}
+						catch (Exception ex)
+						{
+							ex.PythonException();
+						}
 					}
 
 
@@ -304,9 +314,7 @@ namespace TestClient.Scripts
 						}
 						catch (Exception ex)
 						{
-							ExceptionOperations eo = engine.GetService<ExceptionOperations>();
-							string error = eo.FormatException(ex);
-							Debug.WriteLine($"Error handling message {msg.Type:X4} : {error}");
+							ex.PythonException(msg.Type);
 						}
 						msg.Dispose();
 					}

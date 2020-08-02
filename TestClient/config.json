@@ -1,5 +1,6 @@
 {
-    "script" : {
-        "python_lib" : "C:\\Python27\\Lib"
-    }
+  "script": {
+    // for reading standard API
+    "python_lib": "C:\\Python27-64\\Lib"
+  }
 }

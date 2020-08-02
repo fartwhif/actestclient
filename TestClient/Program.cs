@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
-
+using System.Linq;
 using Microsoft.Extensions.CommandLineUtils;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Scripting.Utils;
 
 // https://github.com/migueldeicaza/gui.cs/
 // https://blog.terribledev.io/Parsing-cli-arguments-in-dotnet-core-Console-App/
@@ -44,6 +45,7 @@ namespace TestClient
 			commandManager = new CommandManager();
 			displayManager = new DisplayManager();
 			networkManager = new NetworkManager();
+
 			scriptManager = new ScriptManager("script", config["script:python_lib"]);
 			scriptManager.SetDisplayManager(displayManager);
 
